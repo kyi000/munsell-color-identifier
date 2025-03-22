@@ -25,6 +25,16 @@ if sys.platform == "win32":
     import win32gui
     import win32ui
     import win32con
+# macOS/Linux 환경에서 필요한 모듈
+else:
+    try:
+        import mss
+    except ImportError:
+        pass
+    try:
+        from PIL import ImageGrab
+    except ImportError:
+        pass
 
 from color_utils import find_closest_munsell, rgb_to_hex, get_munsell_color_rgb
 
@@ -223,6 +233,7 @@ class ScreenColorPicker:
                 
             # macOS 및 Linux
             else:
+                # mss 라이브러리를 사용한 방법 (더 빠르고 정확함)
                 try:
                     import mss
                     with mss.mss() as sct:
@@ -232,13 +243,25 @@ class ScreenColorPicker:
                         img = np.array(sct_img)
                         # BGRA에서 RGB로 변환
                         self.screenshot = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+                        return True
                 except ImportError:
-                    # mss가 설치되지 않은 경우 대체 방법 시도
-                    self.screenshot = cv2.cvtColor(
-                        np.array(ImageGrab.grab()), 
-                        cv2.COLOR_BGR2RGB
-                    )
-                    
+                    # PIL ImageGrab을 사용한 대체 방법 (macOS/Linux)
+                    try:
+                        from PIL import ImageGrab
+                        img = np.array(ImageGrab.grab())
+                        self.screenshot = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                        return True
+                    except ImportError:
+                        print("스크린샷 캡처를 위해 mss 또는 PIL 라이브러리가 필요합니다.")
+                        print("pip install mss 또는 pip install pillow를 실행하여 설치해주세요.")
+                        return False
+                    except Exception as e:
+                        print(f"PIL ImageGrab 오류: {str(e)}")
+                        return False
+                except Exception as e:
+                    print(f"mss 오류: {str(e)}")
+                    return False
+            
             return True
             
         except Exception as e:
