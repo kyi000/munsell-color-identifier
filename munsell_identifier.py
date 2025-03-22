@@ -12,12 +12,19 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QLabel, QPushButton, QFileDialog, 
                             QListWidget, QListWidgetItem, QMessageBox, 
                             QToolTip, QSplitter)
-from PyQt5.QtGui import QPixmap, QImage, QColor, QPainter, QPen, QFont
+from PyQt5.QtGui import QPixmap, QImage, QColor, QPainter, QPen, QFont, QCursor
 from PyQt5.QtCore import Qt, QPoint, QTimer, QEvent, QSize
 
 import numpy as np
 from PIL import Image, ImageQt
 import cv2
+
+# Windows 환경에서 필요한 모듈
+if sys.platform == "win32":
+    import win32api
+    import win32gui
+    import win32ui
+    import win32con
 
 from color_utils import find_closest_munsell, rgb_to_hex, get_munsell_color_rgb
 
@@ -182,6 +189,7 @@ class ScreenColorPicker:
                 import win32gui
                 import win32ui
                 import win32con
+                import win32api
                 
                 # 전체 화면 크기 가져오기
                 width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
@@ -201,7 +209,7 @@ class ScreenColorPicker:
                 
                 # Bitmap 정보를 numpy 배열로 변환
                 signedIntsArray = bmp.GetBitmapBits(True)
-                img = np.fromstring(signedIntsArray, dtype='uint8')
+                img = np.frombuffer(signedIntsArray, dtype='uint8')
                 img.shape = (height, width, 4)
                 
                 # 정리
@@ -215,14 +223,21 @@ class ScreenColorPicker:
                 
             # macOS 및 Linux
             else:
-                import mss
-                with mss.mss() as sct:
-                    monitor = sct.monitors[0]  # 기본 모니터
-                    sct_img = sct.grab(monitor)
-                    # mss 결과를 numpy 배열로 변환
-                    img = np.array(sct_img)
-                    # BGRA에서 RGB로 변환
-                    self.screenshot = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+                try:
+                    import mss
+                    with mss.mss() as sct:
+                        monitor = sct.monitors[0]  # 기본 모니터
+                        sct_img = sct.grab(monitor)
+                        # mss 결과를 numpy 배열로 변환
+                        img = np.array(sct_img)
+                        # BGRA에서 RGB로 변환
+                        self.screenshot = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+                except ImportError:
+                    # mss가 설치되지 않은 경우 대체 방법 시도
+                    self.screenshot = cv2.cvtColor(
+                        np.array(ImageGrab.grab()), 
+                        cv2.COLOR_BGR2RGB
+                    )
                     
             return True
             
